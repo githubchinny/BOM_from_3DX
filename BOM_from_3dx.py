@@ -649,17 +649,4 @@ if __name__ == '__main__':
             # print ("file written to {}".format(data_shuttle_path))
 
 
-# %%
-BOM_pp.filter(regex=('Source|Provide'))
-
-# %%
-import xlwings as xw 
-
-wb = xw.Book()
-ws = wb.sheets(0)
-ws['A1'].options(pd.DataFrame, header=True, index=False).value=BOM_ordered_without_packaging
-
-# %%
-
-
 
