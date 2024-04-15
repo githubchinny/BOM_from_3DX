@@ -619,12 +619,16 @@ if __name__ == '__main__':
             project = product.split('-')[0]
             output_file = 'Updated_{}_{}.xlsx'.format(product, curr_time.split()[0])
             output_path = os.path.join(sharepoint_dir, project, output_file)
+            # automatically create the parent directories if don't exist
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)            
             # print ("file written to {}".format(output_path))
 
             # write to data shuttle directory for Carlos to pick up
             data_shuttle_file = 'Updated_{}_{}.xlsx'.format(product, curr_time.split()[0])
             ds_folder = data_shuttle_folder(product)
             data_shuttle_path = os.path.join(sharepoint_dir, 'Data Shuttle', ds_folder, data_shuttle_file)
+            # automatically create the parent directories if don't exist
+            Path(data_shuttle_path).parent.mkdir(parents=True, exist_ok=True) 
 
             # get st_birthtime instead of creation time (deprecated) of 3dx file 
             extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_birthtime)
