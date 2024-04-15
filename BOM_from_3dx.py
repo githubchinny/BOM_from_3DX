@@ -626,8 +626,8 @@ if __name__ == '__main__':
             ds_folder = data_shuttle_folder(product)
             data_shuttle_path = os.path.join(sharepoint_dir, 'Data Shuttle', ds_folder, data_shuttle_file)
 
-            # get creation time of 3dx file 
-            extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_ctime)
+            # get st_birthtime instead of creation time (deprecated) of 3dx file 
+            extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_birthtime)
             BOM_pp = add_smartsheet_cols(BOM_pp, extract_date)            
             # format Last Export Date as datetime, with dayfirst
             BOM_pp['Last Export Date'] = pd.to_datetime(BOM_pp['Last Export Date'], dayfirst=True)
@@ -653,6 +653,9 @@ if __name__ == '__main__':
             # write out without packaging to data shuttle
             write_to_excel(BOM_ordered_without_packaging, data_shuttle_path)
             # print ("file written to {}".format(data_shuttle_path))
+
+
+# %%
 
 
 
