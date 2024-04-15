@@ -518,6 +518,12 @@ if __name__ == '__main__':
         user_dir = download_dir
         sharepoint_dir = download_dir
 
+    elif os.getlogin() == 'mark_':
+        # my test windows machine
+        download_dir = Path('C:/Users/mark_/Downloads')
+        user_dir = download_dir
+        sharepoint_dir = download_dir        
+
     else:
         # personal one drive
         user_dir = 'C:/Users/USERNAME'
