@@ -113,13 +113,20 @@ def rename_columns(df):
     return df  
 
 # %%
-def add_smartsheet_cols(df, extract_date):
-    # matching key now dealt with when creating the parent part
-    # df['Matching Key'] = np.where(df['GParent Part'].isna(), None, df['Parent Part'].astype(str) + df['GParent Part'].astype(str))
-    # df['Matching Key'] = np.where(df['Matching Key'].isna(), df['Title'].astype(str), df['Title'].astype(str) + df['Matching Key'].astype(str))
-    # df['Matching Key'] = np.where(df['Parent Part'].isna(), df['Title'].astype(str), df["Title"].astype(str) + df["Parent Part"].astype(str))
+def add_matching_key(df):
+    df['Matching Key'] = np.where(df['Parent Part'].isna(), df['Title'].astype(str), df["Title"].astype(str) + df["Parent Part"].astype(str))
     # force matching key to always be upper case
     df['Matching Key'] = df['Matching Key'].str.upper()
+    # build cumcount
+    df['cumcount'] = df.groupby('Matching Key').cumcount()+1
+    # blank out the first cumcount of each group
+    df['cumcount'] = np.where(df['cumcount']==1, '', df['cumcount'])
+    df['Matching Key'] = df['Matching Key'].astype(str) + df['cumcount'].astype(str)
+
+    return df
+
+# %%
+def add_smartsheet_cols(df, extract_date):
     # need to correct the percent missing for matching key column
     df.loc['percent_missing','Matching Key'] = 0
     df['Last Export Date'] = extract_date
@@ -579,8 +586,9 @@ if __name__ == '__main__':
             # add an SA_Index for the add_quantities stage
             BOM_sa = create_sa_index(BOM)
 
-            # BOM_pp = create_parent_part(BOM_sa)
-            BOM_pp = create_gparent_part(BOM_sa)
+            BOM_pp = create_parent_part(BOM_sa)
+            #  don't want full MK after all!
+            # BOM_pp = create_gparent_part(BOM_sa)
 
             # if we've not been given quantity we need to do the roll-up ourselves
             if 'Quantity' not in BOM.columns:
@@ -630,6 +638,8 @@ if __name__ == '__main__':
             # automatically create the parent directories if don't exist
             Path(data_shuttle_path).parent.mkdir(parents=True, exist_ok=True) 
 
+            BOM_pp = add_matching_key(BOM_pp)
+
             # get st_birthtime instead of creation time (deprecated) of 3dx file 
             extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_birthtime)
             BOM_pp = add_smartsheet_cols(BOM_pp, extract_date)            
@@ -657,9 +667,6 @@ if __name__ == '__main__':
             # write out without packaging to data shuttle
             write_to_excel(BOM_ordered_without_packaging, data_shuttle_path)
             # print ("file written to {}".format(data_shuttle_path))
-
-
-# %%
 
 
 
