@@ -1,7 +1,24 @@
 # %% [markdown]
 # # Build a new BoM from 3dx files
 # 
-# This is reading in extracts produced by Alec, adding the function group and system/subsystem, and doing the roll up quantity calcs in the absence of 3DX doing that.
+# This is reading in extracts produced by 3dx, adding the function group and system/subsystem, and doing the roll up quantity calcs in the absence of 3DX doing that.
+# 
+# The script does the following functions that is missing from 3DX currently:
+# 
+# * Populate Function Group/System/Sub System – not fully populated in 3DX for all parts and this is needed downstream for reporting
+# * Add Percentage Missing calculations for all attributes/columns for EDAG reporting
+# * Create a matching key for Smartsheets processing
+# * Add last Export Date to top of export and as a column 
+# * Add BOM COUNT validation column
+# * Add Parent Part column – not maintained in 3DX and requested by downstream systems
+# * Validates all mandatory attributes are included before processing any further
+# * If Quantity doesn’t exist (comes only from XEN tool) then group parts and create Quantity column (removes the reliance on XEN license)
+# * Clear zero values, ‘not set’ and blank spaces from 3DX extract – zero does not mean the attribute is populated and needs to be removed to show it requires completion
+# * Add Part Number validation and report where it doesn’t adhere to part numbering standard – creates validation columns at the far right of the export
+# * Force the order of selected key attributes to the left as not always maintained in 3DX extract files
+# * Derive the export folder to send file to and name file for Data Shuttle to pick up – top level ‘Title’ (ie T48e-01-Z00001 = VP 5 door master product - T48e-01-Z00001’
+# * Identify where a part is a lowest level child part and add a ‘has_child’ column to support Smartsheet Mass calculations
+# 
 
 # %%
 import pandas as pd
@@ -93,14 +110,17 @@ def add_function_group(df):
 
 # %%
 def rename_columns(df):
+    # keep python index as 'orig_sort' - useful for knowing you've maintained the BoM structure/order
     df.reset_index(inplace=True)
     df.rename(columns={'index':'orig_sort'}, inplace=True)
 
+    # sometimes column came through as Title (Instance) 
     try:
         df.rename(columns={'Title (Instance)':'Instance Title'}, inplace=True)
     except ValueError:
         print ("didn't find Title (Instance) to rename")
 
+    # 3dx calls Quantity Occurrences
     try:
         df.rename(columns={'Occurrences':'Quantity'}, inplace=True)
     except ValueError:
@@ -114,12 +134,13 @@ def rename_columns(df):
 
 # %%
 def add_matching_key(df):
+    # for us in smartsheets
     df['Matching Key'] = np.where(df['Parent Part'].isna(), df['Title'].astype(str), df["Title"].astype(str) + df["Parent Part"].astype(str))
-    # force matching key to always be upper case
+    # force matching key to always be upper case whilst there is inconsistency within 3dx.  Otherwise, doesn't match dup parts
     df['Matching Key'] = df['Matching Key'].str.upper()
-    # build cumcount
+    # build cumulative count for each part
     df['cumcount'] = df.groupby('Matching Key').cumcount()+1
-    # blank out the first cumcount of each group
+    # not interested in the first occurrence of a part - blank out the first cumcount of each group
     df['cumcount'] = np.where(df['cumcount']==1, '', df['cumcount'])
     df['Matching Key'] = df['Matching Key'].astype(str) + df['cumcount'].astype(str)
 
@@ -151,7 +172,7 @@ def mandatory_attributes(bom_cols):
 
 # %%
 def order_columns(df):
-
+    # this specifies the order of the left most cols.  Columns not mentioned below then appear alphabetically afterwards
     cols_to_order = ['BOM COUNT',
         'Matching Key',
         'Last Export Date',
@@ -164,6 +185,7 @@ def order_columns(df):
         'Parent Part',
         'Revision',
         'Description',
+        'Name',
         'Quantity',
         'Source Code',
         'UOM',
@@ -209,6 +231,7 @@ def create_sa_index(df):
 
 # %%
 def create_sa_index2(df):
+    # this was attempting to rely on 3dx labelling of an Assembly - didn't work all of the time
     df['SA_Index'] = np.where(df['Assembly'], df['orig_sort'].astype(str), np.nan)
     df['SA_Index'] = df['SA_Index'].ffill()
 
@@ -217,12 +240,12 @@ def create_sa_index2(df):
 # %%
 def add_quantities(df):
 
-    # if the extract hasn't come with quantity column then we need to calculate our own grouping like parts together
-    # this is only being done for level 4 and below - level 4 is assumed to be assembly level
-    # there is a problem with this, though, as we don't know what level the extract was done at
+    # if the extract hasn't come with quantity column then we need to calculate our own grouping of like parts together
+    # this is only being done for level 4 and greater - level 4 is assumed to be assembly level
+    # there is a potential problem with this if the extract is not produced for the top level part of a structure
     
     # groupby:
-    # SA_Index - created earlier, this will group the parts within an assembly (level 4 and below) - is this correct??
+    # SA_Index - created earlier, this will group the parts within an assembly (level 4 and greater) 
     # Title - this is the part number
     # Parent Part - created earlier, this will group only parts at the same level with the same parent
     # Level - this is probably not required if we are using parent part, but ensures we group at the same level
@@ -448,7 +471,6 @@ def validate_part_no(df):
 
 # %%
 def clear_blanks(df):
-
     # replace an empty string and records with only spaces
     df = df.replace(r'^\s*$', np.nan, regex=True)
 
