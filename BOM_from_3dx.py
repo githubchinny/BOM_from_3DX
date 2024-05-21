@@ -106,6 +106,10 @@ def add_function_group(df):
     df['Sub System'] = np.where(df['Level'] == 3, df['Description'], None)
     df['Sub System'] = np.where(df['Level'] >= 3, df['Sub System'].ffill(), df['Sub System'])
 
+    # Level 4 - for grouping mass and cost roll up for Carlos/smartsheets
+    df['Level_4_Parent'] = np.where(df['Level'] == 4, df['Title'], None)
+    df['Level_4_Parent'] = np.where(df['Level'] >= 4, df['Level_4_Parent'].ffill(), df['Level_4_Parent'])
+
     return df
 
 # %%
@@ -180,6 +184,7 @@ def order_columns(df):
         'Function Group',
         'System',
         'Sub System',
+        'Level_4_Parent',
         'Level',
         'Title',
         'Parent Part',
@@ -689,6 +694,9 @@ if __name__ == '__main__':
             # write out without packaging to data shuttle
             write_to_excel(BOM_ordered_without_packaging, data_shuttle_path)
             # print ("file written to {}".format(data_shuttle_path))
+
+
+# %%
 
 
 
