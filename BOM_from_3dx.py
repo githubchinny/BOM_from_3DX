@@ -1046,8 +1046,12 @@ if __name__ == '__main__':
 
             BOM_pp = add_matching_key(BOM_pp)
 
-            # get st_birthtime instead of creation time (deprecated) of 3dx file 
-            extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_birthtime)
+            # st_birthtime = creation time on MacOS, needs st_ctime for Windows 
+            if 'macOS' in platform.platform():
+                extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_birthtime)
+            else:
+                extract_date = datetime.datetime.fromtimestamp(Path(file).stat().st_ctime)
+                
             BOM_pp = add_smartsheet_cols(BOM_pp, extract_date)            
             # format Last Export Date as datetime, with dayfirst
             BOM_pp['Last Export Date'] = pd.to_datetime(BOM_pp['Last Export Date'], dayfirst=True)
