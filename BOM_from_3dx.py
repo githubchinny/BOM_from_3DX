@@ -63,7 +63,7 @@ def open_file(file):
 
             if 'csv' in file:
                 BOM = pd.DataFrame()
-                BOM = pd.read_csv(f, low_memory=False) 
+                BOM = pd.read_csv(f, low_memory=False, keep_default_na=False) 
                 # skip first n rows that are header information out of 3DX
                 if 'Level' not in BOM.columns:
                     print ("didn't get the column headers so finding them myself")            
@@ -1091,6 +1091,9 @@ if __name__ == '__main__':
 
             
 
+
+# %%
+orig_bom.filter(regex='External')
 
 # %%
 
