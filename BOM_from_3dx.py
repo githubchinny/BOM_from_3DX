@@ -63,7 +63,7 @@ def open_file(file):
 
             if 'csv' in file:
                 BOM = pd.DataFrame()
-                BOM = pd.read_csv(f, low_memory=False, keep_default_na=False) 
+                BOM = pd.read_csv(f, low_memory=False, na_values="", keep_default_na=False) 
                 # skip first n rows that are header information out of 3DX
                 if 'Level' not in BOM.columns:
                     print ("didn't get the column headers so finding them myself")            
@@ -169,7 +169,8 @@ def add_smartsheet_cols(df, extract_date):
 # %%
 def mandatory_attributes(bom_cols):
     # read in mandatory fields from file in same directory
-    with open('mandatory_attributes.ini', 'r') as f:
+    mand_file = Path(sys.path[0]) / 'mandatory_attributes.ini'
+    with open(mand_file, 'r') as f:
         lst = f.readlines()
 
     mand_cols = [line.rstrip() for line in lst]
@@ -203,10 +204,8 @@ def order_columns(df):
         'Source Code',
         'UOM',
         'Provide',
-        'Actual Mass',
         'CAD Mass',
-        'CAD Material',
-        'Programme Maturity']
+        'CAD Material']
         # 'Subtype']
     
     # # write out mandatory attributes to local file.  Not reading in from here as there is always some code change required anyway!
@@ -389,7 +388,7 @@ def data_shuttle_folder(product):
     # •	VP 3 door master product - T48e-02-Z00005
 
     config = configparser.ConfigParser()
-    config_file = 'product_structures_config.ini'
+    config_file = Path(sys.path[0]) / 'product_structures_config.ini'
     config.read(config_file)
 
     # read the Product_Structures section and look up the product
@@ -400,26 +399,7 @@ def data_shuttle_folder(product):
         ds_folder = 'default'
 
     return ds_folder
-    
 
-    # if 'T48e-01-Z00001' in product:
-    #     return 'VP 5 door master product - T48e-01-Z00001'
-    # elif 'T48e-02-Z00001' in product:
-    #     return 'XP 3 door master product - T48e-02-Z00001'
-    # elif 'T48e-01-Z00005' in product:
-    #     return 'XP 5 door master product – T48e-01-Z00005'
-    # elif 'T48e-02-Z00005' in product:
-    #     return 'VP 3 door master product - T48e-02-Z00005'
-    # elif 'T48e-M1-Z00001' in product:
-    #     return 'Chassis Mule - T48e-M1-Z00001'
-    # elif 'T48e-01-Z00003' in product:
-    #     return 'Kinematics and compliance - T48e-01-Z00003'
-    # elif 'T53-Z00001' in product:
-    #     return 'T53 - Z00001 - BOM Export'
-    # elif 'T53-Z00002' in product:
-    #     return 'T53 - Z00002 - BOM Export'
-    # else:
-    #     return 'default'
 
 
 # %%
@@ -433,7 +413,7 @@ def COG_split(df):
         df[['COG X', 'COG Y', 'COG Z']] = df['COG'].str.split(',', expand=True)
     except ValueError:
         # will fail if there is nothing to split on, so create 3 cols with NaN
-        df[['COG X', 'COG Y', 'COG Z']] = np.NaN
+        df[['COG X', 'COG Y', 'COG Z']] = np.nan
 
     return df
 
@@ -443,16 +423,16 @@ def clear_zero_values(df):
     value_cols = value_cols.drop(['Level','orig_sort'])
 
     # convert 0.0 to na
-    df[value_cols] = np.where(df[value_cols] == 0, np.NaN, df[value_cols])
+    df[value_cols] = np.where(df[value_cols] == 0, np.nan, df[value_cols])
 
     # for COG, convert 0,0,0 to na
-    df['COG'] = np.where(df['COG'] == '0,0,0', np.NaN, df['COG'])
+    df['COG'] = np.where(df['COG'] == '0,0,0', np.nan, df['COG'])
 
     return df
 
 # %%
 def clear_not_set_values(df):
-    df = df.replace('Not Set', np.NaN)
+    df = df.replace('Not Set', np.nan)
 
     return df
 
@@ -723,18 +703,16 @@ def bar_chart(df, report_fg, figsize):
     
 
 # %%
-def write_to_xl2(output_dir, product, df_dict):
+def write_to_xl2(outfile, df_dict):
 
     import xlwings as xw
 
-    out_file = os.path.join(output_dir / "{}_power_bi_metrics.xlsx".format(product))
-
     with xw.App(visible=False) as app:
         try:
-            wb = xw.Book(out_file)
+            wb = xw.Book(outfile)
         except FileNotFoundError:
             wb = xw.Book()
-            wb.save(out_file)
+            wb.save(outfile)
 
         for key in df_dict.keys():
             try:
@@ -925,6 +903,14 @@ if __name__ == '__main__':
         user_dir = download_dir
         sharepoint_dir = download_dir
 
+    elif 'Server' in platform.platform():
+        # we're on the azure server (probably)
+        user_dir = Path('Z:/python/FilesIn')
+
+        download_dir = Path(user_dir)
+        user_dir = download_dir
+        sharepoint_dir = Path('Z:/python/FilesOut')
+
     elif os.getlogin() == 'mark_':
         # my test windows machine
         download_dir = Path('C:/Users/mark_/Downloads')
@@ -1086,14 +1072,13 @@ if __name__ == '__main__':
             reports_dict['BOM'] = power_bi
             # report_metrics(download_dir, product, reports_dict, power_bi)
             # this would have written to a power_bi folder.  Let's leave that for time being
-            # power_bi_output = sharepoint_dir / "power_bi"
-            write_to_xl2(power_bi_output, product, reports_dict)
+            power_bi_outfile = sharepoint_dir / "power_bi" / "{}_power_bi_metrics.xlsx".format(product)
+            # out_file = os.path.join(output_dir / "{}_power_bi_metrics.xlsx".format(product))
+            Path(power_bi_outfile).parent.mkdir(parents=True, exist_ok=True)            
+            write_to_xl2(power_bi_outfile, reports_dict)
 
             
 
-
-# %%
-orig_bom.filter(regex='External')
 
 # %%
 
