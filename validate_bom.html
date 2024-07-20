@@ -7516,8 +7516,291 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Validate-BoM">Validate BoM<a class="anchor-link" href="#Validate-BoM">¶</a></h1><p>This script reads in an excel file(s) from sharepoint that have previously been extracted from 3dx, processed to add the additional functions/metrics and passed to smartsheets.</p>
-<p>It can process as many files as you want for as many product structures as you want and build a history of data quality.  Currently writing out to a file named the same as the input file + '_validated' suffixed to the end</p>
+<h1 id="Validate">Validate<a class="anchor-link" href="#Validate">¶</a></h1><p>Author: Mark Chinnock<br/>
+Date: 19/07/2024</p>
+<p>This script reads in an excel file(s) from sharepoint that have previously been extracted from 3dx, processed to add the additional functions/metrics and passed to smartsheets.</p>
+<p>It can process as many files as you want, for as many product structures as you want, and build a history of data quality.  Currently writing out to a file named the same as the input file + '_validated' suffixed to the end</p>
+<p>Required Inputs:</p>
+<ul>
+<li>3dx extract script - as long as the relevant columns are present this will process it</li>
+</ul>
+<p>Outputs Produced:</p>
+<ul>
+<li>Excel spreadsheet with full input BOM written to a sheet + metric validation rules appended to far right columns for filtering in power bi/excel</li>
+<li>Additional sheets written into spreadsheet for each validation rule, showing the subset of rows that fail each rule</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h1 id="1.-Validation-Rules">1. Validation Rules<a class="anchor-link" href="#1.-Validation-Rules">¶</a></h1>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.1-Makes-without-Buys">1.1 Makes without Buys<a class="anchor-link" href="#1.1-Makes-without-Buys">¶</a></h2><p>For each Make part there should be an assembly that needs at least one Buy part below it to make sense - if you're going to bake a cake, you need at least 1 ingredient!  If you're buying a cake, then you don't need anything else!</p>
+<p>If a MAKE (source code 'AIH','MIH','MOB') is not followed by a child BUY this is a problem</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">check_make_no_buy</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="c1"># if MAKE and there is no BUY below next row's part level less than or equal to current part level we have a MAKE without a BUY</span>
+    <span class="c1"># df['PROVIDE'] = np.where(df['Source Code'].isin(['AIH','MIH','MOB']),'Make','Buy')</span>
+    <span class="n">make_no_buy</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'MOB'</span><span class="p">]))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">])]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">make_no_buy</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">make_no_buy</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">'make_no_buy'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'MOB'</span><span class="p">]))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">df</span><span class="p">,</span> <span class="n">make_no_buy</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.2-Parent-Source-Code">1.2 Parent Source Code<a class="anchor-link" href="#1.2-Parent-Source-Code">¶</a></h2><p>We will need to track the source code of the parent part and use it for validate checks coming later.</p>
+<p>This interates through the dataframe and appends to each row the parent part source code (the level numerically above this row's level)</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">parent_source_code</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+    <span class="n">prev_level</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">level_source</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="c1"># take the current level source and store it</span>
+        <span class="n">level_source</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span>
+        <span class="k">if</span> <span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">)):</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">level_source</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+    
+    <span class="k">return</span> <span class="n">df</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.3-Source-Code-within-parent-checks">1.3 Source Code within parent checks<a class="anchor-link" href="#1.3-Source-Code-within-parent-checks">¶</a></h2><p>sc_check_list is a list of invalid scenarios we are checking for with syntax: SOURCE CODE_PARENT SOURCE CODE</p>
+<p>A dataframe of invalid rows is written to dict_checks[sc_check] and a column is added to the end of the main dataframe with the sc_check as a column name holding true or false</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">source_code_within_parent_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="c1"># check for combinations of source codes within a parent source that's not accepted</span>
+    <span class="n">sc_check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'AIH_POA'</span><span class="p">,</span><span class="s1">'BOP_FIP'</span><span class="p">,</span><span class="s1">'FAS_FAS'</span><span class="p">,</span><span class="s1">'FIP_FIP'</span><span class="p">,</span><span class="s1">'FIP_FAS'</span><span class="p">]</span>
+    
+    <span class="k">for</span> <span class="n">sc_check</span> <span class="ow">in</span> <span class="n">sc_check_list</span><span class="p">:</span>
+        <span class="n">sc</span><span class="p">,</span> <span class="n">parent_sc</span> <span class="o">=</span> <span class="n">sc_check</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'_'</span><span class="p">)</span>
+
+        <span class="n">dict_checks</span><span class="p">[</span><span class="n">sc_check</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">sc</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">parent_sc</span><span class="p">)]</span>
+
+        <span class="n">df</span><span class="p">[</span><span class="n">sc_check</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">sc</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">parent_sc</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+
+    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.4-Level-4-Source-Code-Checks">1.4 Level 4 Source Code Checks<a class="anchor-link" href="#1.4-Level-4-Source-Code-Checks">¶</a></h2><p>level 4 (assembly level when first level = 0) should only have Source Code 'MIH' or 'AIH'</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">check_level_4_source_code_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="c1"># level 4 can only be MIH or AIH</span>
+    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'Non_MIH_AIH_Level_4'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">]))]</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">'Non_MIH_AIH_Level_4'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.5-Fasteners-with-wrong-parent-source-code">1.5 Fasteners with wrong parent source code<a class="anchor-link" href="#1.5-Fasteners-with-wrong-parent-source-code">¶</a></h2><p>Fasteners should only be within parents of 'FIP','AIH,'MIH'</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">FAS_wrong_parent_source_code</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="c1"># FAS can only be within a FIP, AIH or MIH parent</span>
+    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'FAS_Wrong_Parent_Source_code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'FAS'</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'FIP'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">]))]</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">'FAS_Wrong_Parent_Source_code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'FAS'</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'FIP'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">])),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.6-Fastener-checks">1.6 Fastener checks<a class="anchor-link" href="#1.6-Fastener-checks">¶</a></h2><p>Look for scenarios where a description says washer, bolt or grommet but the source code says 'BOF'.</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">fastener_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+    <span class="c1"># All BOF records that are fasteners should be {FAS}teners in the BOMS</span>
+    <span class="c1"># Part Description contains washer, bolt, grommet</span>
+    <span class="c1"># Source code = "BOF"</span>
+    <span class="n">fastener_check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'^washer|^bolt|^grommet'</span><span class="p">]</span>        
+
+    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'FAS_as_BOF'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Description'</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">'</span><span class="si">{}</span><span class="s1">'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fastener_check_list</span><span class="p">)))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">)]</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">'FAS_as_BOF'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Description'</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">'</span><span class="si">{}</span><span class="s1">'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fastener_check_list</span><span class="p">)))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h2 id="1.7-Filter-check-columns">1.7 Filter check columns<a class="anchor-link" href="#1.7-Filter-check-columns">¶</a></h2><p>For writing out to excel on separate sheets, only need to keep the pertinent columns</p>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="cm-editor cm-s-jupyter">
+<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">filter_check_columns</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">):</span>
+    <span class="c1"># reduce the selection of columns used for writing out later</span>
+    <span class="n">check_columns</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">'orig_sort'</span><span class="p">,</span>
+    <span class="s1">'Last Modified By'</span><span class="p">,</span>
+    <span class="s1">'Owner'</span><span class="p">,</span>
+    <span class="s1">'Function Group'</span><span class="p">,</span>
+    <span class="s1">'System'</span><span class="p">,</span>
+    <span class="s1">'Sub System'</span><span class="p">,</span>
+    <span class="s1">'Level'</span><span class="p">,</span>
+    <span class="s1">'Title'</span><span class="p">,</span>
+    <span class="s1">'Revision'</span><span class="p">,</span>
+    <span class="s1">'Description'</span><span class="p">,</span>
+    <span class="s1">'Parent Part'</span><span class="p">,</span>
+    <span class="s1">'Source Code'</span><span class="p">,</span>
+    <span class="s1">'Quantity'</span><span class="p">,</span>
+    <span class="s1">'Parent Source Code'</span>
+    <span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dict_checks</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">dict_checks</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dict_checks</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">check_columns</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">dict_checks</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h1 id="2.-Script-config-setup">2. Script config setup<a class="anchor-link" href="#2.-Script-config-setup">¶</a></h1>
 </div>
 </div>
 </div>
@@ -7692,255 +7975,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Makes-without-Buys">Makes without Buys<a class="anchor-link" href="#Makes-without-Buys">¶</a></h1><p>For each Make part there should be an assembly that needs at least one Buy part below it to make sense - if you're going to bake a cake, you need at least 1 ingredient!  If you're buying a cake, then you don't need anything else!</p>
-<p>If a MAKE is not followed by a child BUY this is a problem</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">check_make_no_buy</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-    <span class="c1"># if MAKE and there is no BUY below next row's part level less than or equal to current part level we have a MAKE without a BUY</span>
-    <span class="c1"># df['PROVIDE'] = np.where(df['Source Code'].isin(['AIH','MIH','MOB']),'Make','Buy')</span>
-    <span class="n">make_no_buy</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'MOB'</span><span class="p">]))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">])]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
-    <span class="n">make_no_buy</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">make_no_buy</span><span class="p">)</span>
-    <span class="n">df</span><span class="p">[</span><span class="s1">'make_no_buy'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'MOB'</span><span class="p">]))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">df</span><span class="p">,</span> <span class="n">make_no_buy</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Parent-Source-Code">Parent Source Code<a class="anchor-link" href="#Parent-Source-Code">¶</a></h1><p>We will need to track what the source code of the parent part is and validate whether it is a correct scenario.</p>
-<p>This interates through the dataframe and writes out to each row what the parent part (the level above this row's level) source code was</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">parent_source_code</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
-    <span class="n">prev_level</span> <span class="o">=</span> <span class="mi">0</span>
-
-    <span class="n">level_source</span> <span class="o">=</span> <span class="p">{}</span>
-
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
-        <span class="c1"># take the current level source and store it</span>
-        <span class="n">level_source</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]]</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span>
-        <span class="k">if</span> <span class="p">((</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">4</span><span class="p">)):</span>
-            <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">level_source</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
-    
-    <span class="k">return</span> <span class="n">df</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Source-Code-within-parent-checks">Source Code within parent checks<a class="anchor-link" href="#Source-Code-within-parent-checks">¶</a></h1><p>sc_check_list is a list of invalid scenarios we are checking for with syntax: SOURCE CODE_PARENT SOURCE CODE</p>
-<p>A dataframe of invalid rows is written to dict_checks[sc_check] and a column is added to the end of the main dataframe with the sc_check as a column name holding true or false</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">source_code_within_parent_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-    <span class="c1"># check for combinations of source codes within a parent source that's not accepted</span>
-    <span class="n">sc_check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'AIH_POA'</span><span class="p">,</span><span class="s1">'BOP_FIP'</span><span class="p">,</span><span class="s1">'FAS_FAS'</span><span class="p">,</span><span class="s1">'FIP_FIP'</span><span class="p">,</span><span class="s1">'FIP_FAS'</span><span class="p">]</span>
-    
-    <span class="k">for</span> <span class="n">sc_check</span> <span class="ow">in</span> <span class="n">sc_check_list</span><span class="p">:</span>
-        <span class="n">sc</span><span class="p">,</span> <span class="n">parent_sc</span> <span class="o">=</span> <span class="n">sc_check</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">'_'</span><span class="p">)</span>
-
-        <span class="n">dict_checks</span><span class="p">[</span><span class="n">sc_check</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">sc</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">parent_sc</span><span class="p">)]</span>
-
-        <span class="n">df</span><span class="p">[</span><span class="n">sc_check</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">sc</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="n">parent_sc</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-
-    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Level-4-Source-Code-Checks">Level 4 Source Code Checks<a class="anchor-link" href="#Level-4-Source-Code-Checks">¶</a></h1><p>level 4 (assembly level when first level = 0) should only have Source Code 'MIH' or 'AIH'</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">check_level_4_source_code_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-    <span class="c1"># level 4 can only be MIH or AIH</span>
-    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'Non_MIH_AIH_Level_4'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'MIH'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">]))]</span>
-    <span class="n">df</span><span class="p">[</span><span class="s1">'Non_MIH_AIH_Level_4'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Level'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">4</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Fasteners-with-wrong-parent-source-code">Fasteners with wrong parent source code<a class="anchor-link" href="#Fasteners-with-wrong-parent-source-code">¶</a></h1><p>Fasteners should only be within parents of 'FIP','AIH,'MIH'</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">FAS_wrong_parent_source_code</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-    <span class="c1"># FAS can only be within a FIP, AIH or MIH parent</span>
-    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'FAS_Wrong_Parent_Source_code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'FAS'</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'FIP'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">]))]</span>
-    <span class="n">df</span><span class="p">[</span><span class="s1">'FAS_Wrong_Parent_Source_code'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'FAS'</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s1">'Parent Source Code'</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="s1">'FIP'</span><span class="p">,</span><span class="s1">'AIH'</span><span class="p">,</span><span class="s1">'MIH'</span><span class="p">])),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Fastener-checks">Fastener checks<a class="anchor-link" href="#Fastener-checks">¶</a></h1><p>Look for scenarios where a description says washer, bolt or grommet but the source code says 'BOF'.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">fastener_checks</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
-    <span class="c1"># All BOF records that are fasteners should be {FAS}teners in the BOMS</span>
-    <span class="c1"># Part Description contains washer, bolt, grommet</span>
-    <span class="c1"># Source code = "BOF"</span>
-    <span class="n">fastener_check_list</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'^washer|^bolt|^grommet'</span><span class="p">]</span>        
-
-    <span class="n">dict_checks</span><span class="p">[</span><span class="s1">'FAS_as_BOF'</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Description'</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">'</span><span class="si">{}</span><span class="s1">'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fastener_check_list</span><span class="p">)))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">)]</span>
-    <span class="n">df</span><span class="p">[</span><span class="s1">'FAS_as_BOF'</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">df</span><span class="p">[</span><span class="s1">'Description'</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">'</span><span class="si">{}</span><span class="s1">'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fastener_check_list</span><span class="p">)))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">'Source Code'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'BOF'</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">dict_checks</span><span class="p">,</span> <span class="n">df</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Filter-check-columns">Filter check columns<a class="anchor-link" href="#Filter-check-columns">¶</a></h1><p>For writing out to excel on separate sheets, only need to keep the pertinent columns</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">filter_check_columns</span><span class="p">(</span><span class="n">dict_checks</span><span class="p">):</span>
-    <span class="c1"># reduce the selection of columns used for writing out later</span>
-    <span class="n">check_columns</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s1">'orig_sort'</span><span class="p">,</span>
-    <span class="s1">'Function Group'</span><span class="p">,</span>
-    <span class="s1">'System'</span><span class="p">,</span>
-    <span class="s1">'Sub System'</span><span class="p">,</span>
-    <span class="s1">'Level'</span><span class="p">,</span>
-    <span class="s1">'Title'</span><span class="p">,</span>
-    <span class="s1">'Revision'</span><span class="p">,</span>
-    <span class="s1">'Description'</span><span class="p">,</span>
-    <span class="s1">'Parent Part'</span><span class="p">,</span>
-    <span class="s1">'Source Code'</span><span class="p">,</span>
-    <span class="s1">'Quantity'</span><span class="p">,</span>
-    <span class="s1">'Parent Source Code'</span>
-    <span class="p">]</span>
-
-    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dict_checks</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-        <span class="nb">print</span> <span class="p">(</span><span class="n">key</span><span class="p">)</span>
-        <span class="n">dict_checks</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dict_checks</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">check_columns</span><span class="p">]</span>
-
-    <span class="k">return</span> <span class="n">dict_checks</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Write-to-excel">Write to excel<a class="anchor-link" href="#Write-to-excel">¶</a></h1><p>Call xlwings with your pre-prepared dictionary and write out many sheets to one excel file, naming the sheets whatever you called your dictionary keys</p>
+<h1 id="3.-Write-to-excel">3. Write to excel<a class="anchor-link" href="#3.-Write-to-excel">¶</a></h1><p>Call xlwings with your pre-prepared dictionary and write out many sheets to one excel file, naming the sheets whatever you called your dictionary keys</p>
 </div>
 </div>
 </div>
@@ -8035,7 +8070,7 @@ a.anchor-link {
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Main-Processing">Main Processing<a class="anchor-link" href="#Main-Processing">¶</a></h1>
+<h1 id="4.-Main-Processing">4. Main Processing<a class="anchor-link" href="#4.-Main-Processing">¶</a></h1><p>This is where the processing begins, and where we call the functions defined above.</p>
 </div>
 </div>
 </div>
@@ -8054,7 +8089,7 @@ a.anchor-link {
     <span class="c1"># files = find_files()</span>
     <span class="n">dict_df</span> <span class="o">=</span> <span class="p">{}</span>
 
-    <span class="n">filename</span> <span class="o">=</span> <span class="s1">'Updated_T48e-01-Z00005_2024-07-19.xlsx'</span>
+    <span class="n">filename</span> <span class="o">=</span> <span class="s1">'Updated_T48e-01-Z00001_2024-07-19.xlsx'</span>
     <span class="n">sharepoint_dir</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">,</span> <span class="n">user_dir</span> <span class="o">=</span> <span class="n">set_folder_defaults</span><span class="p">()</span>
 
     <span class="n">file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">download_dir</span><span class="p">)</span> <span class="o">/</span> <span class="n">filename</span>
@@ -8251,7 +8286,41 @@ make_no_buy
 <div class="highlight hl-ipython3"><pre><span></span><span class="c1"># Write out to excel</span>
 <span class="n">pathfile</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">stem</span>
 <span class="n">output_file</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Path</span><span class="p">(</span><span class="n">pathfile</span> <span class="o">+</span> <span class="s1">'_validated'</span><span class="p">)</span><span class="o">.</span><span class="n">with_suffix</span><span class="p">(</span><span class="s1">'.xlsx'</span><span class="p">)</span>
-<span class="n">write_to_xl</span><span class="p">(</span><span class="n">output_file</span><span class="p">,</span> <span class="n">dict_checks</span><span class="p">)</span>
+<span class="c1"># write_to_xl(output_file, dict_checks)</span>
+
+<span class="c1"># using inline write to excel as this seems to work better on mac.  </span>
+<span class="n">outfile</span> <span class="o">=</span> <span class="n">output_file</span>
+<span class="n">df_dict</span> <span class="o">=</span> <span class="n">dict_checks</span>
+
+<span class="kn">import</span> <span class="nn">xlwings</span> <span class="k">as</span> <span class="nn">xw</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">wb</span> <span class="o">=</span> <span class="n">xw</span><span class="o">.</span><span class="n">Book</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
+    <span class="nb">print</span> <span class="p">(</span><span class="s2">"writing to existing </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outfile</span><span class="p">))</span>
+<span class="k">except</span> <span class="ne">FileNotFoundError</span><span class="p">:</span>
+    <span class="c1"># create a new book</span>
+    <span class="nb">print</span> <span class="p">(</span><span class="s2">"creating new </span><span class="si">{}</span><span class="s2">"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">outfile</span><span class="p">))</span>
+    <span class="n">wb</span> <span class="o">=</span> <span class="n">xw</span><span class="o">.</span><span class="n">Book</span><span class="p">()</span>
+    <span class="n">wb</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">df_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ws</span> <span class="o">=</span> <span class="n">wb</span><span class="o">.</span><span class="n">sheets</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    
+    <span class="n">ws</span> <span class="o">=</span> <span class="n">wb</span><span class="o">.</span><span class="n">sheets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="n">table_name</span> <span class="o">=</span> <span class="n">key</span>
+
+    <span class="n">ws</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">df_dict</span><span class="p">[</span><span class="n">key</span><span class="p">])[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">table_name</span> <span class="ow">in</span> <span class="p">[</span><span class="n">table</span><span class="o">.</span><span class="n">df</span> <span class="k">for</span> <span class="n">table</span> <span class="ow">in</span> <span class="n">ws</span><span class="o">.</span><span class="n">tables</span><span class="p">]:</span>
+            <span class="n">ws</span><span class="o">.</span><span class="n">tables</span><span class="p">[</span><span class="n">table_name</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">table_name</span> <span class="o">=</span> <span class="n">ws</span><span class="o">.</span><span class="n">tables</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="n">ws</span><span class="p">[</span><span class="s1">'A1'</span><span class="p">],</span>
+                                        <span class="n">name</span><span class="o">=</span><span class="n">table_name</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -8264,7 +8333,7 @@ make_no_buy
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>writing to existing c:\Users\mark_\Documents\GitHub\BOM_from_3DX\Updated_T48e-01-Z00005_2024-07-19_validated.xlsx
+<pre>writing to existing /Users/mark/Documents/BOM_from_3DX/Updated_T48e-01-Z00001_2024-07-19_validated.xlsx
 Sheet named 'AIH_POA' already present in workbook
 Sheet named 'BOP_FIP' already present in workbook
 Sheet named 'FAS_FAS' already present in workbook
@@ -8275,75 +8344,6 @@ Sheet named 'FAS_Wrong_Parent_Source_code' already present in workbook
 Sheet named 'FAS_as_BOF' already present in workbook
 Sheet named 'make_no_buy' already present in workbook
 Sheet named 'BOM' already present in workbook
-</pre>
-</div>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dict_checks</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-    <span class="nb">print</span> <span class="p">(</span><span class="n">key</span><span class="p">)</span>
-    <span class="nb">print</span> <span class="p">(</span><span class="n">dict_checks</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">orig_sort</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
-</pre></div>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell-outputWrapper">
-<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
-</div>
-<div class="jp-OutputArea jp-Cell-outputArea">
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>AIH_POA
-363      933
-388      965
-647     1311
-2747    4957
-2749    4959
-Name: orig_sort, dtype: object
-BOP_FIP
-Series([], Name: orig_sort, dtype: object)
-FAS_FAS
-297     496
-316     541
-405     995
-427    1023
-428    1029
-Name: orig_sort, dtype: object
-FIP_FIP
-Series([], Name: orig_sort, dtype: object)
-FIP_FAS
-Series([], Name: orig_sort, dtype: object)
-FAS_as_BOF
-11    10
-27    39
-31    52
-37    66
-38    67
-Name: orig_sort, dtype: object
-make_no_buy
-23      35
-78     159
-95     179
-100    184
-102    186
-Name: orig_sort, dtype: object
-BOM
-0    percent_missing
-1                  0
-2                  1
-3                  2
-4                  3
-Name: orig_sort, dtype: object
 </pre>
 </div>
 </div>
@@ -8400,16 +8400,16 @@ Name: orig_sort, dtype: object
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
 <pre>
-<span class="ansi-red-intense-fg ansi-bold">---------------------------------------------------------------------------</span>
-<span class="ansi-red-intense-fg ansi-bold">NameError</span>                                 Traceback (most recent call last)
-Cell <span class="ansi-green-intense-fg ansi-bold">In[41], line 4</span>
-<span class="ansi-green-fg">      1</span> <span class="ansi-bold" style="color: rgb(0,135,0)">import</span> <span class="ansi-bold" style="color: rgb(0,0,255)">xlwings</span> <span class="ansi-bold" style="color: rgb(0,135,0)">as</span> <span class="ansi-bold" style="color: rgb(0,0,255)">xw</span>
-<span class="ansi-green-fg">      2</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span> <span class="ansi-bold" style="color: rgb(0,0,255)">openpyxl</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">utils</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">cell</span> <span class="ansi-bold" style="color: rgb(0,135,0)">import</span> get_column_letter
-<span class="ansi-green-intense-fg ansi-bold">----&gt; 4</span> make_filename <span style="color: rgb(98,98,98)">=</span> os<span style="color: rgb(98,98,98)">.</span>path<span style="color: rgb(98,98,98)">.</span>join(sharepoint_dir, project, project <span style="color: rgb(98,98,98)">+</span> <span style="color: rgb(175,0,0)">'</span><span style="color: rgb(175,0,0)">_MakeBuyQuery.xlsm</span><span style="color: rgb(175,0,0)">'</span>)
-<span class="ansi-green-fg">      6</span> <span class="ansi-bold" style="color: rgb(0,135,0)">with</span> xw<span style="color: rgb(98,98,98)">.</span>App():
-<span class="ansi-green-fg">      7</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">try</span>:
+<span class="ansi-red-fg">---------------------------------------------------------------------------</span>
+<span class="ansi-red-fg">NameError</span>                                 Traceback (most recent call last)
+Cell <span class="ansi-green-fg">In[17], line 4</span>
+<span class="ansi-green-intense-fg ansi-bold">      1</span> <span class="ansi-bold" style="color: rgb(0,135,0)">import</span> <span class="ansi-bold" style="color: rgb(0,0,255)">xlwings</span> <span class="ansi-bold" style="color: rgb(0,135,0)">as</span> <span class="ansi-bold" style="color: rgb(0,0,255)">xw</span>
+<span class="ansi-green-intense-fg ansi-bold">      2</span> <span class="ansi-bold" style="color: rgb(0,135,0)">from</span> <span class="ansi-bold" style="color: rgb(0,0,255)">openpyxl</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">utils</span><span class="ansi-bold" style="color: rgb(0,0,255)">.</span><span class="ansi-bold" style="color: rgb(0,0,255)">cell</span> <span class="ansi-bold" style="color: rgb(0,135,0)">import</span> get_column_letter
+<span class="ansi-green-fg">----&gt; 4</span> make_filename <span style="color: rgb(98,98,98)">=</span> os<span style="color: rgb(98,98,98)">.</span>path<span style="color: rgb(98,98,98)">.</span>join(sharepoint_dir, <span class="ansi-yellow-bg">project</span>, project <span style="color: rgb(98,98,98)">+</span> <span style="color: rgb(175,0,0)">'</span><span style="color: rgb(175,0,0)">_MakeBuyQuery.xlsm</span><span style="color: rgb(175,0,0)">'</span>)
+<span class="ansi-green-intense-fg ansi-bold">      6</span> <span class="ansi-bold" style="color: rgb(0,135,0)">with</span> xw<span style="color: rgb(98,98,98)">.</span>App():
+<span class="ansi-green-intense-fg ansi-bold">      7</span>     <span class="ansi-bold" style="color: rgb(0,135,0)">try</span>:
 
-<span class="ansi-red-intense-fg ansi-bold">NameError</span>: name 'project' is not defined</pre>
+<span class="ansi-red-fg">NameError</span>: name 'project' is not defined</pre>
 </div>
 </div>
 </div>
