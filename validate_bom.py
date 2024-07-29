@@ -163,8 +163,8 @@ def filter_check_columns(dict_checks):
 # 
 
 # %%
-def check_attributes(df):
-    attr_filename = '3DX Attributes Requirements for Release and Clarification.xlsx'
+def check_attributes(df, attr_filename):
+
 
     attr = pd.read_excel(attr_filename, sheet_name='Drop Down Attributes', na_values="", keep_default_na=False)
 
@@ -477,7 +477,8 @@ def main(df):
     dict_checks['make_no_buy'] = df.loc[make_no_buy]
 
     # validate the 3dx attributes that have dropdowns
-    df = check_attributes(df)
+    attr_file = Path(sharepoint_dir / 'GMT - Standards' / '3DX Attributes Requirements for Release and Clarification.xlsx')
+    df = check_attributes(df, attr_file)
 
     # write out just the cols we need to report against
     dict_checks = filter_check_columns(dict_checks)
