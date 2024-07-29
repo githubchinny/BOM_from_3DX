@@ -113,6 +113,38 @@ def add_function_group(df):
     return df
 
 # %%
+def add_function_group_new(df):
+    # Add Function and Sub Group if it doesn't already exist
+
+    # - Level 0 = Model Variant   
+    # - Level 1 = Function Group Area   
+    # - Level 2 = System   
+    # - Level 3 = Sub Systems
+    # - level 4 = AMs/SAs??
+
+    # Find each one and forward fill to the next occurrence
+    # function group - level 0
+    df['Function Group'] = np.where(df['Level']==0, df['Title'], None)
+
+    # function group - level 1
+    df['Function Group'] = np.where(df['Level']==1, df['Title'].astype(str) + ' - ' + df['Description'].astype(str), None)
+    df['Function Group'] = np.where(df['Level'] >= 1, df['System'].ffill(), None)
+
+    # System - level 2
+    df['System'] = np.where(df['Level'] == 2, df['Title'].astype(str) + ' - ' + df['Description'].astype(str), None)
+    df['System'] = np.where(df['Level'] >= 2, df['System'].ffill(), None)
+
+    # SUB_System = level 3
+    df['Sub System'] = np.where(df['Level'] == 3, df['Title'].astype(str) + ' - ' + df['Description'].astype(str), None)
+    df['Sub System'] = np.where(df['Level'] >= 3, df['Sub System'].ffill(), df['Sub System'])
+
+    # Level 4 - for grouping mass and cost roll up for Carlos/smartsheets
+    df['Level_4_Parent'] = np.where(df['Level'] == 4, df['Title'], None)
+    df['Level_4_Parent'] = np.where(df['Level'] >= 4, df['Level_4_Parent'].ffill(), df['Level_4_Parent'])
+
+    return df
+
+# %%
 def rename_columns(df):
     # keep python index as 'orig_sort' - useful for knowing you've maintained the BoM structure/order
     df.reset_index(inplace=True)
@@ -570,10 +602,22 @@ def build_reports(df):
 
     return fg_reports
 
-# %%
-def CAD_Material_validation(df):
-    df[1:][df['Title'].str.contains('TPP', na=False)].groupby(['Title','CAD Material']).size()
+# %% [markdown]
+# # CAD Material
+# 
+# Validate the values in CAD Material
+# 
+# EDM have already a standard material for Assemblies called "See Parts Drawings". 
+# 
+# * RULE: I am asking for Levels 1-2-3 in the BOM are automatically set to "N/A" in CAD Material in the BOM
+# * RULE: I am asking for "See Parts Drawings" to have a density of ZERO so not to have an artificial mass. 
 
+# %%
+def CAD_Material(df):
+    # CAD Material isn't needed for Levels 1-3
+    df['CAD Material'] = np.where(df['Level']<=3, 'N/A', df['CAD Material'])
+
+    return df
 
 # %%
 def duplicate_checks(df):
@@ -746,7 +790,7 @@ def write_to_xl2(outfile, df_dict):
         # # write to sheet[0] power_bi df (1st row metrics and BOM COUNT col already removed when creating power_bi df)
         # ws['A1'].options(pd.DataFrame, header=True, index=False).value=bom
 
-
+        print ("Power BI file written to {}".format(outfile))
 
         wb.save() 
 
@@ -891,6 +935,15 @@ def report_metrics(download_dir, product, reports_dict, power_bi):
             wb.save()
 
 
+# %%
+def validate_bom(df):
+    import validate_bom
+
+    # take a copy of the BOM to validate
+    BOM_to_validate = df.copy()
+
+    validate_bom.main(BOM_to_validate)    
+
 # %% [markdown]
 # # Main Processing
 
@@ -959,12 +1012,14 @@ if __name__ == '__main__':
             # check mandatory attributes are present
             mandatory_cols = mandatory_attributes(BOM.columns)
 
-            # if 'Function Group' not in BOM.columns:
-            BOM = add_function_group(BOM)
-            BOM = rename_columns(BOM)
-
             # read the title from first row as product to this file after
             product = BOM['Title'].loc[0]
+            # project should be the first part of the product
+            project = product.split('-')[0]
+
+            # if 'Function Group' not in BOM.columns:
+            BOM = add_function_group_new(BOM)
+            BOM = rename_columns(BOM)
 
             # populate COG x, y, z from COG field
             # 04/04/2024 - Jannik/Carlos - don't need separate COG cols anymore
@@ -1012,7 +1067,6 @@ if __name__ == '__main__':
             # BOM_pp = split_subtype(BOM_pp)
 
             # write out the updated filename with timestamp to the correct dir
-            project = product.split('-')[0]
             output_file = 'Updated_{}_{}.xlsx'.format(product, curr_time.split()[0])
             output_path = os.path.join(sharepoint_dir, project, output_file)
             # automatically create the parent directories if don't exist
@@ -1049,6 +1103,9 @@ if __name__ == '__main__':
             # drop packaging function group from the extract we send to data shuttle for processing
             BOM_without_packaging = BOM_pp[~BOM_pp['Function Group'].str.contains('PACKAGING', na=False)]
 
+            # apply CAD Material rules
+            BOM_without_packaging = CAD_Material(BOM_without_packaging)
+
             # calculate percent missing after dropping packaging
             BOM_without_packaging = percent_missing(BOM_without_packaging)
             BOM_pp = percent_missing(BOM_pp)
@@ -1064,23 +1121,21 @@ if __name__ == '__main__':
             write_to_excel(BOM_ordered_without_packaging, data_shuttle_path)
             print ("file written to {}".format(data_shuttle_path))
 
-            # power_bi processing
-            power_bi = create_power_bi_df(BOM_ordered_without_packaging, product)
-            # add part validation
-            power_bi = validate_part_no(power_bi)
-            reports_dict = build_reports(power_bi)
-            reports_dict['BOM'] = power_bi
-            # report_metrics(download_dir, product, reports_dict, power_bi)
-            # this would have written to a power_bi folder.  Let's leave that for time being
-            power_bi_outfile = sharepoint_dir / "power_bi" / "{}_power_bi_metrics.xlsx".format(product)
-            # out_file = os.path.join(output_dir / "{}_power_bi_metrics.xlsx".format(product))
-            Path(power_bi_outfile).parent.mkdir(parents=True, exist_ok=True)            
-            write_to_xl2(power_bi_outfile, reports_dict)
+            validate_bom(BOM_ordered_without_packaging)
+            # do need to do any of the power bi work here any more - will call validate_bom processes separately
+            # # power_bi processing
+            # power_bi = create_power_bi_df(BOM_ordered_without_packaging, product)
+            # # add part validation
+            # power_bi = validate_part_no(power_bi)
+            # reports_dict = build_reports(power_bi)
+            # reports_dict['BOM'] = power_bi
+            # # report_metrics(download_dir, product, reports_dict, power_bi)
+            # # this would have written to a power_bi folder.  Let's leave that for time being
+            # power_bi_outfile = sharepoint_dir / "power_bi" / "{}_power_bi_metrics.xlsx".format(product)
+            # # out_file = os.path.join(output_dir / "{}_power_bi_metrics.xlsx".format(product))
+            # Path(power_bi_outfile).parent.mkdir(parents=True, exist_ok=True)            
+            # write_to_xl2(power_bi_outfile, reports_dict)
 
-            
-
-
-# %%
 
 
 
