@@ -488,7 +488,7 @@ def main(df):
 
     # build outfile name and write to excel for power bi
     outfile_name = product + '_' + variant
-    output_file = Path(sharepoint_dir) / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
+    output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
     write_to_xl(output_file, dict_checks)
 
 
