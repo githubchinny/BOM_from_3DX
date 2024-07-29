@@ -3,9 +3,9 @@
 # Author: Mark Chinnock  
 # Date: 19/07/2024
 # 
-# This script can read in an excel file(s) from sharepoint that have previously been extracted from 3dx, processed to add the additional functions/metrics and passed to smartsheets.
+# This script can read in excel file(s) from sharepoint that have previously been extracted from 3dx, processed to add the additional functions/metrics and passed to smartsheets.  Currently, this is what it is doing as I am expecting to process the historic files to create summary metrics.
 # 
-# Alternatively, this could read in the 3dx extract directly to validate the latest attributes.
+# Going forward this could read in the 3dx extract directly to validate the latest attributes.
 # 
 # It can process as many files as you want, for as many product structures as you want, and build a history of data quality.  Currently writing out to excel file named the same as the input file and suffixed with '_validated'.
 # 
@@ -156,7 +156,7 @@ def filter_check_columns(dict_checks):
     return dict_checks
 
 # %% [markdown]
-# ## 1.8 Valid 3dx Dropdown values
+# ## 1.8 Validate GMT Standards 3DX Attributes Requirements
 # 
 # Read in the GMT Standards document from GMT sharepoint folder and confirm 3dx extract contains the same columns and valid values
 # 
@@ -181,6 +181,47 @@ def check_attributes(df):
 
     return df
 
+
+# %% [markdown]
+# # 1.9 Validate BoM and Function Group Structure GMT document
+# 
+# This document is stored on GMT-EngineeringBoM sharepoint in GMT Standards folder:  
+# https://forsevengroup.sharepoint.com/:x:/r/sites/GMT-EngineeringBoM/Shared%20Documents/GMT%20-%20Standards/BoM%20and%20Function%20Group%20Structure%20GMT.xlsx?d=wc3cbfc77631c40b69ba7d5026066a2e7&csf=1&web=1&e=B64OP2
+
+# %%
+def validate_BOM_Function_Group_structure():
+    # this is incomplete
+    struct_filename = 'BoM and Function Group Structure GMT.xlsx'
+
+    struct = pd.read_excel(struct_filename, sheet_name='T48E')
+    # drop first row of struct which should be project, model variant, function group area, systems, sub sytems, AMs
+    struct = struct.loc[1:]
+
+    # find the first nan row in Level 4s as this will show where the last row in the valid values ends
+    last_row = struct['Level 4'].isna().idxmax()-1
+
+    # drop the rest of the struct rows
+    struct = struct.loc[:last_row]
+
+    # and now create a dictionary of all the valid values for each column - this drops the nan values for each column where we read merged cells from excel
+    struct_d = {struct[column].name: [y for y in struct[column] if not pd.isna(y)] for column in struct}
+
+
+
+# %% [markdown]
+# # 1.10 Validate Part No
+# 
+# at the moment the Part Number (Title) should be:
+# 
+# [project]-[functional area][5 digit part number] == 11 characters
+
+# %%
+def validate_part_no(df):
+    # ? means the preceding bracketed group is optional (optional s,S and trailing X)
+    pattern = r'([A-Z]\d{2}[e])-(\w[A-Za-z0-9]*)?-?([A-Z])(\d{5})(X)?'
+    df[['extr_project','extr_invalid_code','extr_function','extr_pn','extr_maturity']] = df['Title'].str.extract(pattern, expand=True)
+
+    return df
 
 # %% [markdown]
 # # 2. Script config setup
@@ -216,6 +257,26 @@ def type_of_script():
             return 'ipython'
     except:
         return 'terminal'
+
+# %%
+def add_missing_metrics(df):
+    for col in ['UOM','Provide','Source Code','CAD Mass','CAD Maturity','CAD Material','Electrical Connector']:
+        df['Missing {}'.format(col)] = np.where(df[col].isnull(), 1, 0)
+
+    return df
+
+# %%
+def CAD_Material_validation(df):
+    df[1:][df['Title'].str.contains('TPP', na=False)].groupby(['Title','CAD Material']).size()
+
+
+# %%
+def add_bi_key(df):
+    # for use in power_bi reporting
+    # replace NaN with ''
+    df['bi_combined_key'] = df['Product'].astype(str) + df['Function Group'].astype(str) + df['System'].astype(str) + df['Sub System'].astype(str)
+    
+    return df['bi_combined_key']
 
 # %% [markdown]
 # determine the folder structure based on whether we're running on a test windows pc, in azure server, a mac, or in the real world against sharepoint - helps Mark test on different devices! 
@@ -282,43 +343,61 @@ def find_files(download_dir):
 
     return files
 
+# %%
+def lookup_variant(search):
+
+    variant_d = {'T48E-01-Z00001':'VP_5_door',
+                'T48E-01-Z00005':'XP_5_door',
+                'T48E-02-Z00001':'VP_3_door',
+                'T48E-02-Z00005':'XP_3_door'}
+    try:
+        variant = variant_d[search]
+    except KeyError:    
+        print ("No variant lookup found for {}".format(search))
+        # just return what we searched with
+        variant = search
+    return variant
+
 # %% [markdown]
 # # 3. Write to excel
 # 
 # Call xlwings with your pre-prepared dictionary and write out many sheets to one excel file, naming the sheets whatever you called your dictionary keys
 
 # %%
-def write_to_xl(outfile, df_dict):
+def write_to_xl(output_file, dict_checks):
+
+    outfile = output_file
+    df_dict = dict_checks
+
     import xlwings as xw
-    with xw.App(visible=True) as app:
+    try:
+        wb = xw.Book(output_file)
+        print ("writing to existing {}".format(outfile))
+    except FileNotFoundError:
+        # create a new book
+        print ("creating new {}".format(outfile))
+        wb = xw.Book()
+        wb.save(outfile)
+
+    for key in df_dict.keys():
         try:
-            wb = xw.Book(outfile)
-            print ("writing to existing {}".format(outfile))
-        except FileNotFoundError:
-            # create a new book
-            print ("creating new {}".format(outfile))
-            wb = xw.Book()
-            wb.save(outfile)
+            ws = wb.sheets.add(key)
+        except Exception as e:
+            print (e)
+        
+        ws = wb.sheets[key]
 
-        for key in df_dict.keys():
-            try:
-                ws = wb.sheets.add(key)
-            except Exception as e:
-                print (e)
-            
-            ws = wb.sheets[key]
+        table_name = key
 
-            table_name = key
+        ws.clear()
 
-            ws.clear()
-
-            df = df_dict[key].set_index(list(df_dict[key])[0])
+        df = df_dict[key].set_index(list(df_dict[key])[0])
+        if len(df) > 0:
             if table_name in [table.df for table in ws.tables]:
                 ws.tables[table_name].update(df)
             else:
                 table_name = ws.tables.add(source=ws['A1'],
                                             name=table_name).update(df)
-    wb.save(outfile)
 
 # %% [markdown]
 # # write out to excel using sub system
@@ -350,27 +429,30 @@ def write_to_xl_sub_system(dict_checks):
 # This is where the processing begins, and where we call the functions defined above.  
 
 # %%
-if __name__ == '__main__':
+def main(df):
 
-    # for reading in multiple files
-
-    # files = find_files()
-    dict_df = {}
-
-    filename = 'Updated_T48e-01-Z00001_2024-07-19.xlsx'
-    sharepoint_dir, download_dir, user_dir = set_folder_defaults()
-
-    file = Path(download_dir) / filename
-
-    df = pd.DataFrame()
-
-    with open(file, "rb") as f:
-        # reading in the historic excel files
-        df = pd.read_excel(f, parse_dates=True)
-        f.close()
+    # copy df without the 1st row of metrics and 1st col of BOM COUNTs
+    df = df.iloc[1:,1:]        
 
     df.reset_index(drop=False, inplace=True)
     df.rename(columns={'index':'bom_order'}, inplace=True)
+
+    # variant ie T48E-01-Z00001
+    # variant should be the first title in this dataframe, or the level 0 title
+    variant = lookup_variant(df['Title'][df['Level']==0].values[0])
+    # product ie T48E should be first part of the Title we got in variant
+    product = re.split('-', df['Title'][df['Level']==0].values[0])[0].upper()
+
+
+    # add variant column for merging multiple BOMs together and reporting on 1 dashboard
+    df['Variant'] = variant
+    df['Product'] = product
+    
+    df['bi_combined_key'] = add_bi_key(df)    
+
+    df = add_missing_metrics(df)
+    # add part validation
+    df = validate_part_no(df)
 
     # add parent source code to each row for validation checks to come
     df = parent_source_code(df)
@@ -402,6 +484,35 @@ if __name__ == '__main__':
 
     # add the full df to the sheet
     dict_checks['BOM'] = df
+
+    # build outfile name and write to excel for power bi
+    outfile_name = product + '_' + variant
+    output_file = Path(sys.path[0]) / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
+    write_to_xl(output_file, dict_checks)
+
+
+# %%
+# this gets called if running from this script.  
+if __name__ == '__main__':
+
+    # for reading in multiple files
+
+    # files = find_files()
+    dict_df = {}
+
+    filename = 'Updated_T48e-01-Z00005_2024-07-26.xlsx'
+
+    sharepoint_dir, download_dir, user_dir = set_folder_defaults()
+
+    file = Path(download_dir) / filename
+
+    with open(file, "rb") as f:
+        # reading in the historic excel files
+        df = pd.read_excel(f, parse_dates=True)
+        f.close()
+
+    # call the main processing
+    main(df)
 
 
 
@@ -452,50 +563,25 @@ def multi_source_code(df):
 
 
 # %%
-multi_sc = multi_source_code(df)
-multi_sc
+def create_heatmap(df, figsize):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import seaborn as sns
 
-# %% [markdown]
-# ### Write out source code checks to excel
-
-# %%
-# Write out to excel
-pathfile = Path(file.name).stem
-output_file = Path(sys.path[0]) / Path(pathfile + '_validated').with_suffix('.xlsx')
-# write_to_xl(output_file, dict_checks)
-
-# using inline write to excel as this seems to work better on mac.  
-outfile = output_file
-df_dict = dict_checks
-
-import xlwings as xw
-try:
-    wb = xw.Book(output_file)
-    print ("writing to existing {}".format(outfile))
-except FileNotFoundError:
-    # create a new book
-    print ("creating new {}".format(outfile))
-    wb = xw.Book()
-    wb.save(outfile)
-
-for key in df_dict.keys():
-    try:
-        ws = wb.sheets.add(key)
-    except Exception as e:
-        print (e)
-    
-    ws = wb.sheets[key]
-
-    table_name = key
-
-    ws.clear()
-
-    df = df_dict[key].set_index(list(df_dict[key])[0])
-    if len(df) > 0:
-        if table_name in [table.df for table in ws.tables]:
-            ws.tables[table_name].update(df)
-        else:
-            table_name = ws.tables.add(source=ws['A1'],
-                                        name=table_name).update(df)
+       
+    hmap = plt.figure(figsize=figsize)
+    ax = sns.heatmap(df, annot = True, fmt=".0%", cmap='YlGnBu', annot_kws={'fontsize':8}, linewidths=0.5)
+    ax.set(xlabel="", ylabel="")
+    ax.xaxis.tick_top()
+    plt.rc('xtick', labelsize=10)
+    plt.rc('ytick', labelsize=10)
+    cbar = ax.collections[0].colorbar
+    cbar.set_ticks([0, .2, .75, 1])
+    cbar.set_ticklabels(['0%', '20%', '75%', '100%'])
+    plt.figure()
+    # sns.set(font_scale=.5)
+    # plt.show()
+    plt.close(hmap)
+    return hmap
 
 
