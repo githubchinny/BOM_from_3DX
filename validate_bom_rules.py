@@ -351,7 +351,7 @@ def lookup_variant(search):
                 'T48E-02-Z00001':'VP_3_door',
                 'T48E-02-Z00005':'XP_3_door'}
     try:
-        variant = variant_d[search]
+        variant = variant_d[search.upper()]
     except KeyError:    
         print ("No variant lookup found for {}".format(search))
         # just return what we searched with
