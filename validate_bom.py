@@ -434,8 +434,12 @@ def write_to_xl_sub_system(dict_checks):
 def main(df):
 
     # copy df without the 1st row of metrics and 1st col of BOM COUNTs
-    df = df.iloc[1:,1:]        
-
+    # safer to search for percent_missing row and get rid of it
+    df = df[df.orig_sort != 'percent_missing']
+    # BOM COUNT is not needed 
+    df.drop(columns='BOM COUNT', inplace=True)
+    # take the Variant from the level 0 Title
+    
     df.reset_index(drop=False, inplace=True)
     df.rename(columns={'index':'bom_order'}, inplace=True)
 
