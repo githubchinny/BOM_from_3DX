@@ -150,7 +150,7 @@ def filter_check_columns(dict_checks):
     ]
 
     for key in dict_checks.keys():
-        print (key)
+        # print (key)
         dict_checks[key] = dict_checks[key][check_columns]
 
     return dict_checks
