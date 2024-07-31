@@ -176,9 +176,9 @@ def check_attributes(df, attr_filename):
         # check the column exists
         try:
             mask = df[key].isin(attr_d[key])
-            df[key + ' Check'] = np.where(mask, 'Valid','Invalid')
+            df['Check ' + key] = np.where(mask, 'Valid','Invalid')
         except KeyError as e:
-            df[key + ' Check'] = 'Not in Extract'
+            df[key] = 'Not in Extract'
 
     return df
 
