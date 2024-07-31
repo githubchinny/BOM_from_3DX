@@ -170,6 +170,7 @@ def check_attributes(df, attr_filename):
 
     # create a dictionary of all the valid values for each column - this drops the nan values for each column
     attr_d = {attr[column].name: [y for y in attr[column] if not pd.isna(y)] for column in attr}
+    
 
     for key in attr_d:
         # check the column exists
@@ -477,6 +478,9 @@ def main(df):
     df, make_no_buy = check_make_no_buy(df)
     dict_checks['make_no_buy'] = df.loc[make_no_buy]
 
+    # set folder defaults again in case called directly from another script
+    sharepoint_dir, download_dir, user_dir = set_folder_defaults()
+    
     # validate the 3dx attributes that have dropdowns
     attr_file = Path(sharepoint_dir / 'GMT - Standards' / '3DX Attributes Requirements for Release and Clarification.xlsx')
     df = check_attributes(df, attr_file)
@@ -492,6 +496,7 @@ def main(df):
     output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
     write_to_xl(output_file, dict_checks)
 
+    return df
 
 # %%
 # this gets called if running from this script.  
@@ -514,8 +519,7 @@ if __name__ == '__main__':
         f.close()
 
     # call the main processing
-    main(df)
-
+    df = main(df)
 
 
 # %% [markdown]
@@ -527,11 +531,8 @@ if __name__ == '__main__':
 # ## Non Level 4 ASSY
 # 
 # Should any part with ASSY in description be at Level 4 only?
-
-# %%
-def Non_level_4_ASSY(df):
-    df[df.Description.str.contains('ASSY', na=False)].groupby(['Level']).size()
-
+# 
+# No! this isn't a valid check
 
 # %% [markdown]
 # ## Multiple Source Codes
@@ -585,5 +586,47 @@ def create_heatmap(df, figsize):
     # plt.show()
     plt.close(hmap)
     return hmap
+
+# %%
+downlo
+
+# %%
+from glob import glob
+
+glob(download_dir / 'T48E' / 'Updated_*Z00001.xlsx.txt', recursive = True)[0]
+
+# %%
+def build_delta(df)
+    
+    # /**/ makes this recursive through folders in the project specfied
+    from glob import glob
+
+
+
+    try:
+        glob(download_dir + '/T48E' + 'Updated_*Z00001.xlsx.txt', recursive = True)[0]
+        previous_struct_file = glob(outdir + '/**/Structure_*' + prev_timestamps + '.txt', recursive = True)[0]
+        previous_part_file = glob(outdir + '/**/Part*' + prev_timestamps + '.txt', recursive = True)[0]
+    except:
+        print('No previous files found for timestamp {}'.format(prev_timestamps))
+        print("location: {}".format(outdir + '/**/Part*' + prev_timestamps + '.txt'))
+        exit()
+
+    # use dtype in read_csv to capture trailing zeros in ENG_PART_REV
+    path = os.path.join(base, 'IFS', previous_part_file)
+    try:
+        with open(path, "rb") as f:
+            prev_part = pd.read_csv(f, sep='\t', dtype={'ENG_PART_REV':str}) 
+            # sheetnames = [sheet for sheet in f.sheet_names]
+    except (FileNotFoundError):
+        logit.critical("File not found: {}".format(path))
+
+    try:
+        path = os.path.join(base, 'IFS', previous_struct_file)
+        with open(path, "rb") as f:
+            prev_struct = pd.read_csv(f, sep='\t', dtype={'SUB_PART_REV':str}) 
+            # sheetnames = [sheet for sheet in f.sheet_names]
+    except (FileNotFoundError):
+        logit.critical("File not found: {}".format(path))
 
 
