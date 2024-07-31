@@ -353,9 +353,9 @@ def lookup_variant(search):
                 'T48E-02-Z00001':'VP_3_door',
                 'T48E-02-Z00005':'XP_3_door'}
     try:
-        variant = variant_d[search]
+        variant = variant_d[search.upper()]
     except KeyError:    
-        print ("No variant lookup found for {} Therefore didn't update variant name".format(search))
+        print ("No variant lookup found for {} Therefore didn't update variant name".format(search.upper()))
         # just return what we searched with
         variant = search
     return variant
@@ -492,11 +492,11 @@ def main(df):
     dict_checks['BOM'] = df
 
     # build outfile name and write to excel for power bi
-    outfile_name = product + '_' + variant
-    output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
-    write_to_xl(output_file, dict_checks)
+    # outfile_name = product + '_' + variant
+    # output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
+    # write_to_xl(output_file, dict_checks)
 
-    return df
+    return dict_checks
 
 # %%
 # this gets called if running from this script.  
@@ -507,7 +507,7 @@ if __name__ == '__main__':
     # files = find_files()
     dict_df = {}
 
-    filename = 'Updated_T48e-01-Z00005_2024-07-26.xlsx'
+    filename = 'T48E/Updated_T48e-01-Z00001_2024-06-04.xlsx'
 
     sharepoint_dir, download_dir, user_dir = set_folder_defaults()
 
