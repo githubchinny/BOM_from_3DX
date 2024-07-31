@@ -437,9 +437,12 @@ def main(df):
     # safer to search for percent_missing row and get rid of it
     df = df[df.orig_sort != 'percent_missing']
     # BOM COUNT is not needed 
-    df.drop(columns='BOM COUNT', inplace=True)
-    # take the Variant from the level 0 Title
-    
+    try:
+        df.drop(columns='BOM COUNT', inplace=True)
+    except KeyError:
+        # didn't find BOM COUNT - doesn't matter
+        pass
+
     df.reset_index(drop=False, inplace=True)
     df.rename(columns={'index':'bom_order'}, inplace=True)
 
