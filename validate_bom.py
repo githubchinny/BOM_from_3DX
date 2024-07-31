@@ -494,9 +494,9 @@ def main(df):
     outfile_name = product + '_' + variant
     output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
     # don't write out file here - let calling script choose
-    # write_to_xl(output_file, dict_checks)
+    write_to_xl(output_file, dict_checks)
 
-    return output_file, dict_checks
+    return df
 
 # %%
 # this gets called if running from this script.  
@@ -518,8 +518,8 @@ if __name__ == '__main__':
         df = pd.read_excel(f, parse_dates=True)
         f.close()
 
-    # call the main processing
-    df = main(df)
+    # call the main processing.  Return filepath and dict_checks
+    output_file, dict_checks = main(df)
 
 
 # %% [markdown]
