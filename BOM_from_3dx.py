@@ -1018,7 +1018,7 @@ if __name__ == '__main__':
             project = product.split('-')[0]
 
             # if 'Function Group' not in BOM.columns:
-            BOM = add_function_group_new(BOM)
+            BOM = add_function_group(BOM)
             BOM = rename_columns(BOM)
 
             # populate COG x, y, z from COG field
