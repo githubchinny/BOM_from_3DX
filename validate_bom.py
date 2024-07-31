@@ -587,46 +587,4 @@ def create_heatmap(df, figsize):
     plt.close(hmap)
     return hmap
 
-# %%
-downlo
-
-# %%
-from glob import glob
-
-glob(download_dir / 'T48E' / 'Updated_*Z00001.xlsx.txt', recursive = True)[0]
-
-# %%
-def build_delta(df)
-    
-    # /**/ makes this recursive through folders in the project specfied
-    from glob import glob
-
-
-
-    try:
-        glob(download_dir + '/T48E' + 'Updated_*Z00001.xlsx.txt', recursive = True)[0]
-        previous_struct_file = glob(outdir + '/**/Structure_*' + prev_timestamps + '.txt', recursive = True)[0]
-        previous_part_file = glob(outdir + '/**/Part*' + prev_timestamps + '.txt', recursive = True)[0]
-    except:
-        print('No previous files found for timestamp {}'.format(prev_timestamps))
-        print("location: {}".format(outdir + '/**/Part*' + prev_timestamps + '.txt'))
-        exit()
-
-    # use dtype in read_csv to capture trailing zeros in ENG_PART_REV
-    path = os.path.join(base, 'IFS', previous_part_file)
-    try:
-        with open(path, "rb") as f:
-            prev_part = pd.read_csv(f, sep='\t', dtype={'ENG_PART_REV':str}) 
-            # sheetnames = [sheet for sheet in f.sheet_names]
-    except (FileNotFoundError):
-        logit.critical("File not found: {}".format(path))
-
-    try:
-        path = os.path.join(base, 'IFS', previous_struct_file)
-        with open(path, "rb") as f:
-            prev_struct = pd.read_csv(f, sep='\t', dtype={'SUB_PART_REV':str}) 
-            # sheetnames = [sheet for sheet in f.sheet_names]
-    except (FileNotFoundError):
-        logit.critical("File not found: {}".format(path))
-
 
