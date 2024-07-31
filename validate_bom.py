@@ -239,7 +239,6 @@ from pathlib import Path
 import argparse
 import platform
 import sys
-import configparser
 
 
 # %% [markdown]
@@ -332,13 +331,13 @@ def set_folder_defaults():
 # based on the folder defaults look for the files we're interested in
 
 # %%
-def find_files(download_dir):
+def find_files(download_dir, search='*'):
     # find any changed files changed in past 2hrs in the downloads directory
     dirpath = download_dir
     files = []
     for p, ds, fs in os.walk(dirpath):
         for fn in fs:
-            if 'Updated_' in fn:
+            if search in fn:
                 # was using this to filter what filenames to find
                 filepath = os.path.join(p, fn)
                 files.append(filepath)
@@ -494,9 +493,10 @@ def main(df):
     # build outfile name and write to excel for power bi
     outfile_name = product + '_' + variant
     output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
-    write_to_xl(output_file, dict_checks)
+    # don't write out file here - let calling script choose
+    # write_to_xl(output_file, dict_checks)
 
-    return df
+    return output_file, dict_checks
 
 # %%
 # this gets called if running from this script.  
