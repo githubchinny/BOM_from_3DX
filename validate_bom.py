@@ -176,7 +176,7 @@ def check_attributes(df, attr_filename):
         # check the column exists
         try:
             mask = df[key].isin(attr_d[key])
-            df['Check ' + key] = np.where(mask, 'Valid','Invalid')
+            df['Check_' + key] = np.where(mask, 'Valid','Invalid')
         except KeyError as e:
             df[key] = 'Not in Extract'
 
@@ -435,7 +435,7 @@ def main(df):
 
     # copy df without the 1st row of metrics and 1st col of BOM COUNTs
     # safer to search for percent_missing row and get rid of it
-    df = df[df.orig_sort != 'percent_missing']
+    df = df[df.orig_sort != 'percent_missing'].copy()
     # BOM COUNT is not needed 
     try:
         df.drop(columns='BOM COUNT', inplace=True)
@@ -499,9 +499,9 @@ def main(df):
     dict_checks['BOM'] = df
 
     # build outfile name and write to excel for power bi
-    # outfile_name = product + '_' + variant
-    # output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
-    # write_to_xl(output_file, dict_checks)
+    outfile_name = product + '_' + variant
+    output_file = Path(sharepoint_dir) / 'power_bi' / Path(outfile_name + '_power_bi_metrics').with_suffix('.xlsx')
+    write_to_xl(output_file, dict_checks)
 
     return dict_checks
 
